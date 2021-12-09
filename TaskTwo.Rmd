@@ -1,0 +1,67 @@
+---
+title: "Task Three (Word-Level Analysis)"
+author: "Jiayue Lu"
+data: 2021/12/08
+output:
+  pdf_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+options(warn=-1)
+knitr::opts_chunk$set(echo = TRUE)
+
+# Required packages loading
+
+library(ggplot2) 
+library(gutenbergr)
+library(dplyr)
+library(stringr)
+library(tidyr)
+library(tidytext)
+```
+
+```{r include=FALSE}
+# Book ID for my selected book
+book_id <- 1424
+
+# Prepare the book data
+book_data <- gutenberg_download(book_id)
+```
+
+```{r include=FALSE}
+# Data processing: Split text of the book into words
+book_words <- book_data %>%
+  unnest_tokens(word, text) %>%
+  anti_join(stop_words) %>%
+  mutate(line_id = row_number())
+```
+
+```{r include=FALSE}
+# Compute the sentiment: positive words number - negative words number
+book_sentiment <- book_words %>%
+  inner_join(get_sentiments("bing")) %>%
+  count(gutenberg_id, sentiment, batch_id = line_id %/% 85,) %>%
+  spread(sentiment, n, fill = 0) %>%
+  mutate(sentiment = positive - negative)
+```
+
+
+"Afinn" lexicon rwill returns a numeric score between -5 and 5. A higher value means the sentiment is more positive, while a lower value means the sentiment is more negative. However, it is difficult to set a weight function for this score while calculate the total level of sentiment of larger unit. So I pick "Bing" and present its result, which directly return positive or negative. (NRC also directly returns the binary label). 
+
+Since we will compare the result with Task 3, I need to unify their time axes. So I use the line number in the book as the index and cut them into batch of 85. It means each batch will have 85 lines and the associated data. 
+
+"Tidytext" package is utilized to words tokenization. And I also use anti-join to remove the stop words and inner-join to calculate the sentiment. In my definition, the degree of sentiment is number of positive words in a batch - number of negative words in that batch.
+
+Finally, as shown in the plotting, the sentiment fluctuation is consistent with the plot line of the book.
+
+
+
+```{r echo=FALSE}
+# Refer to book "Text Mining with R: A Tidy Approach"
+# Plot the sentiment level distribution figure:
+ggplot(book_sentiment, aes(batch_id, sentiment, fill = gutenberg_id)) +
+  geom_col(show.legend = FALSE, aes(fill = "red")) +
+  facet_wrap(~"Castle Rackrent", ncol = 1, scales = "free_x")
+```
+

@@ -1,0 +1,73 @@
+---
+title: "Task Three (Sentence-Level Analysis)"
+author: "Jiayue Lu"
+data: 2021/12/08
+output:
+  pdf_document:
+    df_print: paged
+---
+
+```{r setup, include=FALSE}
+options(warn=-1)
+knitr::opts_chunk$set(echo = TRUE)
+
+# Required packages loading
+
+library(tidytext)
+library(gutenbergr)
+library(tidyverse)
+library(dplyr)
+library(sentimentr)
+library(ggplot2) 
+```
+
+```{r include=FALSE}
+# Book ID for my selected book
+book_id <- 1424
+
+# Prepare the book data
+book_data <- gutenberg_download(book_id)
+
+# Merge all the text into a string.
+book_str <- paste(book_data$text, sep = "")
+```
+
+```{r include=FALSE}
+# Split the string into sentences with batch id
+book_sentences <- book_str %>%
+  get_sentences() %>%
+  sentiment() %>%
+  filter(!is.na(word_count)) %>%
+  mutate(batch_id = row_number() %/% 25)
+```
+
+```{r include=FALSE}
+# Classify polarity into three types of sentiment (positive, neutral and negative) and calculate the level of polarity
+book_polarity <- book_sentences %>%
+  mutate(polarity_level = ifelse(sentiment > 0.3, "positive", ifelse(sentiment < -0.3, "negative", "neutral"))) %>%
+  count(batch_id, polarity_level) %>%
+  spread(polarity_level, n, fill = 0) %>%
+  mutate(polarity_level = positive - negative)
+```
+
+
+Refer to https://www.r-bloggers.com/2020/04/sentiment-analysis-in-r-with-sentimentr-that-handles-negation-valence-shifters/, I did a sentence-level sentiment analysis over my book (gutenberg_id = 1424).
+
+The biggest difference between word-level sentiment analysis and sentence-level sentiment analysis is about the Negation words. For example, 
+
+“I’m happy” -> Positive “I’m not happy” -> Negative.
+
+In word-level sentiment analysis, it can only get "not" and "happy" separately and it will recognize it as positive sentiment. However, in sentence-level sentiment analysis, "not happy" will be analyzed in one sentence and get the negative sentiment instead.
+
+The result of Task 2 and Task 3 are not the same due to the difference between word-level analysis and sentence-level analysis. But we can capture some obivious trend at some points, like 55. And also some fully inverse result like 137-150. The result proves that word-level analysis is more accurate at some low magnitude, while sentence-level analysis can capture the overall sentiment in a large unit. In the future, it will be great to conduct sentiment analysis by combining different levels of analysis (words, sentence, paragraph, character).
+
+
+
+```{r echo=FALSE}
+# Refer to book "Text Mining with R: A Tidy Approach"
+# Generate the sentiment level distribution figure:
+ggplot(book_polarity, aes(batch_id, polarity_level, fill = 1424)) +
+  geom_col(show.legend = FALSE, aes(fill = "red")) +
+  facet_wrap(~"Castle Rackrent", ncol = 1, scales = "free_x")
+```
+
